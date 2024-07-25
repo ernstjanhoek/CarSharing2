@@ -4,7 +4,6 @@ import carsharing.DBClient;
 import carsharing.car.Car;
 import carsharing.car.CarDao;
 import carsharing.company.Company;
-import carsharing.company.CompanyDao;
 import carsharing.inherit.CRUD;
 import carsharing.inherit.Dao;
 
@@ -38,41 +37,57 @@ public class CustomerDao extends Dao implements CRUD<Customer> {
     }
     @Override
     public Customer read(int id) throws SQLException {
-        String sql = "SELECT c.id as customer_id, c.name as customer_name, " +
-                "c.rented_car_id, ca.id as car_id, ca.name as car_name, ca.available as car_available, ca.company_id as company_id " +
+        String sql = "SELECT c.id AS customer_id, c.name AS customer_name, " +
+                "c.rented_car_id, " +
+                "ca.id AS car_id, ca.name AS car_name, ca.available AS car_available, " +
+                "ca.company_id, co.id AS company_id, co.name AS company_name " +
                 "FROM customer c " +
                 "LEFT JOIN car ca ON c.car_id = ca.id " +
+                "LEFT JOIN company co ON ca.company_id = co.id " +
                 "WHERE c.id = ?";
         try (PreparedStatement statement = client.getConnection().prepareStatement(sql)) {
             statement.setInt(1, id);
-            ResultSet rs = statement.executeQuery();
-            if (rs.next()) {
-                return new Customer(
-                        rs.getInt("customer_id"),
-                        rs.getString("customer_name"),
-                        extractCarFromResultSet(rs)
-                );
-            } else {
-                return null;
-            }
+            return buildCustomerFromResultSet(statement.executeQuery());
         }
     }
 
     public Customer readByName(String name) throws SQLException {
-        String sql = "SELECT * FROM customer WHERE name = ?";
+        String sql = "SELECT c.id AS customer_id, c.name AS customer_name, " +
+                "c.rented_car_id, " +
+                "ca.id AS car_id, ca.name AS car_name, ca.available AS car_available, " +
+                "ca.company_id, co.id AS company_id, co.name AS company_name " +
+                "FROM customer c " +
+                "LEFT JOIN car ca ON c.car_id = ca.id " +
+                "LEFT JOIN company co ON ca.company_id = co.id " +
+                "WHERE c.name = ?";
         try (PreparedStatement statement = client.getConnection().prepareStatement(sql)) {
             statement.setString(1, name);
-            ResultSet rs = statement.executeQuery();
-            if (rs.next()) {
-                return new Customer(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        extractCarFromResultSet(rs)
-                );
-            } else {
-                return null;
-            }
+            return buildCustomerFromResultSet(statement.executeQuery());
         }
+    }
+
+    private Customer buildCustomerFromResultSet(ResultSet rs) throws SQLException {
+        if (rs.next()) {
+            Car car = null;
+            int carId = rs.getInt("car_id");
+            if (!rs.wasNull()) {
+                Company company = new Company(rs.getInt("company_id"), rs.getString("company_name"));
+                car = new Car(
+                        rs.getInt("car_id"),
+                        rs.getString("car_name"),
+                        rs.getBoolean("car_available"),
+                        company
+                );
+            }
+            return new Customer(
+                    rs.getInt("customer_id"),
+                    rs.getString("customer_name"),
+                    car
+            );
+        } else {
+            return null;
+        }
+
     }
 
     private Car extractCarFromResultSet(ResultSet rs) throws SQLException {
@@ -85,7 +100,6 @@ public class CustomerDao extends Dao implements CRUD<Customer> {
 
     @Override
     public List<Customer> readAll() throws SQLException {
-
         List<Customer> customerList = new ArrayList<>();
         String sql = "SELECT * FROM customer";
         try (PreparedStatement statement = client.getConnection().prepareStatement(sql)) {

@@ -1,7 +1,6 @@
 package carsharing.car;
 
 import carsharing.company.Company;
-import carsharing.company.CompanyDao;
 import carsharing.inherit.CRUD;
 import carsharing.DBClient;
 import carsharing.inherit.Dao;
@@ -30,9 +29,11 @@ public class CarDao extends Dao implements CRUD<Car> {
 
     @Override
     public Car read(int id) throws SQLException {
-        String sqlCar = "SELECT car.id, car.name, car.available, company.id, company.name " +
-                "FROM car, company " +
-                "WHERE car.company_id = company.id AND car.id = ?";
+        String sqlCar = "SELECT car.id AS car_id, car.name AS car_name, car.available AS car_available, " +
+                "company.id AS company_id, company.name AS company_name " +
+                "FROM car " +
+                "INNER JOIN company ON car.company_id = company.id " +
+                "WHERE car.id = ?";
         try (PreparedStatement statement = client.getConnection().prepareStatement(sqlCar)){
             statement.setInt(1, id);
             ResultSet rs = statement.executeQuery();
